@@ -1,78 +1,47 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from "react";
 
-class BlocBuilder extends React.Component {
+const BlocBuilder = ({ initialValue, subject, builder }) => {
+  const [snapshot, setSnapshot] = useState({
+    data: null,
+    connectionState: -1,
+    error: null
+  });
+  const subscription = useRef(null);
 
-    //-1 waiting
-    //0 active
-    //1 done
-
-    constructor(props){
-        super(props);
-        this.state = {
-            snapshot : {
-                data: null,
-                connectionState: -1,
-                error : null,
-            }
-        };
-
-        this.subscription = null;
+  useEffect(() => {
+    if (initialValue != null && snapshot.connectionState === -1) {
+      setSnapshot({
+        data: initialValue,
+        connectionState: -1,
+        error: null
+      });
     }
 
-    componentWillMount() {
-        if(this.props.initialValue != null  && this.state.snapshot.connectionState === -1){
-            this.setState({
-                snapshot : {
-                    data: this.props.initialValue,
-                    connectionState: -1,
-                    error : null,
-                }
-            })
-        }
-    }
+    subscription.current = subject.subscribe(
+      data =>
+        setSnapshot({
+          data,
+          connectionState: 0,
+          error: null
+        }),
+      error =>
+        setSnapshot({
+          error,
+          data: null,
+          connectionState: 1
+        }),
+      () =>
+        setSnapshot({
+          data: null,
+          connectionState: 1,
+          error: null
+        })
+    );
 
-    componentDidMount() {
-        this.subscription = this.props.subject.subscribe(
-            (data) => {
-                this.setState({
-                    snapshot:{
-                        data: data,
-                        connectionState : 0,
-                        error : null
-                    }
-                })
-            },
-            (error) => {
-                this.setState({
-                    snapshot:{
-                        data: null,
-                        connectionState : 1,
-                        error : error
-                    }
-                })
-            },
-            () => {
-                this.setState({
-                    snapshot:{
-                        data: null,
-                        connectionState : 1,
-                        error : null
-                    }
-                })
-            }
-        );
-    }
+    return () => subscription.current.unsubscribe();
+  }, []);
 
-    componentWillUnmount() {
-        this.subscription.unsubscribe();
-    }
-
-    render() {
-        return(
-            this.props.builder(this.state.snapshot)
-        );
-    }
-
-}
+  return builder(snapshot);
+};
 
 export default BlocBuilder;
